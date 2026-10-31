@@ -25,8 +25,8 @@ Documentation can be built with make htmldocs or viewed online at:
 https://www.kernel.org/doc/html/latest/
 
 ```bash
-make xiaomipad2_defconfig
-make -j$(nproc) deb-pkg # 编译为debian软件包
+./build.sh xiaomipad2_defconfig
+./build.sh deb-pkg # 编译为debian软件包
 ```
 
 
