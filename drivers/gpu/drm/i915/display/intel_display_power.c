@@ -527,14 +527,8 @@ __intel_display_power_get_domain(struct intel_display *display,
 	if (intel_display_power_grab_async_put_ref(display, domain))
 		return;
 
-	for_each_power_domain_well(display, power_well, domain) {
-		if (domain == POWER_DOMAIN_INIT &&
-		    intel_has_quirk(display, QUIRK_NO_VLV_DISP_PW_DPIO_CMN_BC_INIT) &&
-		    i915_power_well_instance(power_well)->id == VLV_DISP_PW_DPIO_CMN_BC)
-			continue;
-
+	for_each_power_domain_well(display, power_well, domain)
 		intel_power_well_get(display, power_well);
-	}
 
 	power_domains->domain_use_count[domain]++;
 }
@@ -629,14 +623,8 @@ __intel_display_power_put_domain(struct intel_display *display,
 
 	power_domains->domain_use_count[domain]--;
 
-	for_each_power_domain_well_reverse(display, power_well, domain) {
-		if (domain == POWER_DOMAIN_INIT &&
-			intel_has_quirk(display, QUIRK_NO_VLV_DISP_PW_DPIO_CMN_BC_INIT) &&
-			i915_power_well_instance(power_well)->id == VLV_DISP_PW_DPIO_CMN_BC)
-		continue;
-
+	for_each_power_domain_well_reverse(display, power_well, domain)
 		intel_power_well_put(display, power_well);
-	}
 }
 
 static void __intel_display_power_put(struct intel_display *display,
@@ -1040,6 +1028,7 @@ static u32 get_allowed_dc_mask(struct intel_display *display, int enable_dc)
 int intel_display_power_init(struct intel_display *display)
 {
 	struct i915_power_domains *power_domains = &display->power.domains;
+	int ret;
 
 	display->params.disable_power_well =
 		sanitize_disable_power_well_option(display->params.disable_power_well);
@@ -1054,7 +1043,28 @@ int intel_display_power_init(struct intel_display *display)
 	INIT_DELAYED_WORK(&power_domains->async_put_work,
 			  intel_display_power_put_async_work);
 
-	return intel_display_power_map_init(power_domains);
+	ret = intel_display_power_map_init(power_domains);
+	if (ret)
+		return ret;
+
+	/*
+	 * Xiaomi Mi Pad 2 (CHV) 的 VBT 只声明内部 MIPI 面板、没有任何 DP/HDMI 输出，
+	 * 但初始化时 force-enable dpio-common-bc power well 会让 P-Unit 挂死
+	 * (drm/i915 issue #4385)。把 POWER_DOMAIN_INIT 从该 well 的掩码里去掉后，
+	 * 通用 power well 代码便不会在初始化阶段强制打开它，而该 well 对它实际服务的
+	 * DDI/AUX domain 仍然可用。
+	 *
+	 * 该做法与上游针对 CHV P-Unit 挂死问题（drm/i915 issue #4385）的讨论一致。
+	 */
+	if (intel_has_quirk(display, QUIRK_NO_VLV_DISP_PW_DPIO_CMN_BC_INIT)) {
+		struct i915_power_well *power_well;
+
+		power_well = lookup_power_well(display, VLV_DISP_PW_DPIO_CMN_BC);
+		if (power_well)
+			clear_bit(POWER_DOMAIN_INIT, power_well->domains.bits);
+	}
+
+	return 0;
 }
 
 /**
