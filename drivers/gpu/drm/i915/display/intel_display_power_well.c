@@ -83,7 +83,7 @@ struct i915_power_well_ops {
 			   struct i915_power_well *power_well);
 };
 
-const struct i915_power_well_instance *
+static const struct i915_power_well_instance *
 i915_power_well_instance(const struct i915_power_well *power_well)
 {
 	return &power_well->desc->instances->list[power_well->instance_idx];
@@ -1184,8 +1184,8 @@ static void vlv_set_power_well(struct intel_display *display,
 	u32 val;
 	int ret;
 
-	mask = PUNIT_PWRGT_MASK(pw_idx); // 1100 0000 0000
-	state = enable ? PUNIT_PWRGT_PWR_ON(pw_idx) : // 0000 000 000
+	mask = PUNIT_PWRGT_MASK(pw_idx);
+	state = enable ? PUNIT_PWRGT_PWR_ON(pw_idx) :
 			 PUNIT_PWRGT_PWR_GATE(pw_idx);
 
 	vlv_punit_get(display);

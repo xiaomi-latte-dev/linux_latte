@@ -127,9 +127,6 @@ struct i915_power_well {
 struct i915_power_well *lookup_power_well(struct intel_display *display,
 					  enum i915_power_well_id id);
 
-const struct i915_power_well_instance *
-i915_power_well_instance(const struct i915_power_well *power_well);
-
 void intel_power_well_enable(struct intel_display *display,
 			     struct i915_power_well *power_well);
 void intel_power_well_disable(struct intel_display *display,
